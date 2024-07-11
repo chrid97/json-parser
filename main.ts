@@ -1,3 +1,11 @@
+type AstNode =
+    | { type: "Object", value: { [key: string]: AstNode } }
+    | { type: "Array", value: AstNode[] }
+    | { type: "String", value: string }
+    | { type: "Boolean", value: boolean }
+    | { type: "Number", value: number }
+    | { type: "Null", value: null }
+
 type TokenType =
     | "L_BRACE"
     | "R_BRACE"
@@ -30,6 +38,37 @@ function main(): void {
 
     const tokens = lexer(INPUT);
     console.log(tokens);
+}
+
+function parser(tokens: Token[]) {
+    let current = 0;
+
+    function advance(): Token {
+        return tokens[++current];
+    }
+
+    function parse(token: Token): AstNode {
+        switch (token.token_type) {
+            case "L_BRACE":
+            case "L_BRACKET":
+            case "STRING":
+                return { type: "String", value: token.literal };
+            case "NUMBER":
+                return { type: "Number", value: Number(token.literal) };
+            case "TRUE":
+                return { type: "Boolean", value: true };
+            case "FALSE":
+                return { type: "Boolean", value: false };
+            case "NULL":
+                return { type: "Null", value: null };
+            default:
+                throw new Error(`Unexpected token type: ${token.literal}`);
+        }
+    }
+
+    function parse_object(): AstNode {
+        
+    }
 }
 
 function lexer(input: string): Token[] {
