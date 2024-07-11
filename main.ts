@@ -1,10 +1,10 @@
 type AstNode =
-    | { type: "Object", value: { [key: string]: AstNode } }
-    | { type: "Array", value: AstNode[] }
-    | { type: "String", value: string }
-    | { type: "Boolean", value: boolean }
-    | { type: "Number", value: number }
-    | { type: "Null", value: null }
+    | { type: "Object"; value: { [key: string]: AstNode } }
+    | { type: "Array"; value: AstNode[] }
+    | { type: "String"; value: string }
+    | { type: "Boolean"; value: boolean }
+    | { type: "Number"; value: number }
+    | { type: "Null"; value: null };
 
 type TokenType =
     | "L_BRACE"
@@ -12,7 +12,8 @@ type TokenType =
     | "L_BRACKET"
     | "R_BRACKET"
     | "STRING"
-    | "NUMBER" | "COMMA"
+    | "NUMBER"
+    | "COMMA"
     | "COLON"
     | "TRUE"
     | "FALSE"
@@ -38,37 +39,89 @@ function main(): void {
 
     const tokens = lexer(INPUT);
     console.log(tokens);
+    //console.log(parser(tokens));
 }
 
-function parser(tokens: Token[]) {
+function parser(tokens: Token[]): AstNode {
+    if (!tokens.length) {
+        throw new Error("Nothing to parse. Exiting!");
+    }
     let current = 0;
 
     function advance(): Token {
         return tokens[++current];
     }
 
-    function parse(token: Token): AstNode {
+    function parse(): AstNode {
+        const token = tokens[current];
         switch (token.token_type) {
-            case "L_BRACE":
-            case "L_BRACKET":
             case "STRING":
-                return { type: "String", value: token.literal };
+                return { type: "String", value: token.token_type };
             case "NUMBER":
-                return { type: "Number", value: Number(token.literal) };
+                return { type: "Number", value: Number(token.token_type) };
             case "TRUE":
                 return { type: "Boolean", value: true };
             case "FALSE":
                 return { type: "Boolean", value: false };
             case "NULL":
                 return { type: "Null", value: null };
+            case "L_BRACE":
+                return parse_object();
+            case "L_BRACKET":
+                return parse_array();
             default:
-                throw new Error(`Unexpected token type: ${token.literal}`);
+                throw new Error(`Unexpected token type: ${token.token_type}`);
         }
     }
 
     function parse_object(): AstNode {
-        
+        const node: AstNode = { type: "Object", value: {} };
+        let token = advance();
+
+        while (token.token_type !== "R_BRACE") {
+            if (token.token_type === "STRING") {
+                const key = token.literal;
+                token = advance();
+                if (token.token_type !== "COLON") {
+                    throw new Error(
+                        "Uh oh spaghetti-o, missing : in key:value pair",
+                    );
+                }
+                token = advance();
+                console.log(token);
+                const value = parse();
+                node.value[key] = value;
+            } else {
+                throw new Error(
+                    `Expected String key in object. Token type: ${token.token_type}`,
+                );
+            }
+            token = advance();
+            if (token.token_type === "COMMA") {
+                token = advance();
+            }
+        }
+
+        return node;
     }
+
+    function parse_array(): AstNode {
+        const node: AstNode = { type: "Array", value: [] };
+        let token = advance();
+
+        while (token.token_type !== "R_BRACKET") {
+            const value = parse();
+            node.value.push(value);
+            token = advance();
+
+            if (token.token_type === "COMMA") {
+                token = advance();
+            }
+        }
+        return node;
+    }
+
+    return parse();
 }
 
 function lexer(input: string): Token[] {
@@ -80,45 +133,45 @@ function lexer(input: string): Token[] {
             case "{": {
                 tokens.push({ token_type: "L_BRACE", literal: "{" });
                 break;
-            };
+            }
             case "}": {
-                tokens.push({ token_type: "L_BRACE", literal: "}" });
+                tokens.push({ token_type: "R_BRACE", literal: "}" });
                 break;
-            };
+            }
             case "[": {
                 tokens.push({ token_type: "L_BRACKET", literal: "[" });
                 break;
-            };
+            }
             case "]": {
                 tokens.push({ token_type: "R_BRACKET", literal: "]" });
                 break;
-            };
+            }
             case ":": {
                 tokens.push({ token_type: "COLON", literal: ":" });
                 break;
-            };
+            }
             case ",": {
                 tokens.push({ token_type: "COMMA", literal: "," });
                 break;
-            };
-            case "\"": {
+            }
+            case '"': {
                 let literal = "";
                 current_position++;
-                while (input[current_position] != "\"") {
+                while (input[current_position] != '"') {
                     literal = literal.concat(input[current_position]);
                     current_position++;
-                };
+                }
                 const token: Token = { token_type: "STRING", literal };
                 tokens.push(token);
                 break;
-            };
+            }
 
-            default:
+            default: {
                 let literal = "";
                 while (/[\d\w]/.test(input[current_position])) {
                     literal = literal.concat(input[current_position]);
                     current_position++;
-                };
+                }
 
                 // skip whitespace, I don't think i need this but whatever
                 if (/\s/.test(input[current_position])) {
@@ -138,6 +191,7 @@ function lexer(input: string): Token[] {
                     tokens.push({ token_type: "FALSE", literal });
                 }
                 break;
+            }
         }
 
         current_position++;
